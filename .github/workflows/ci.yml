@@ -1,0 +1,39 @@
+name: Verify
+on: [push, pull_request]
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.9"
+          enable-cache: true
+      - run: make setup migrate check
+      - run: cd backend && uv run --locked alembic check
+      - run: cd frontend && npx playwright install --with-deps chromium
+      - name: Verify in Chromium
+        run: |
+          (cd backend && exec uv run --locked uvicorn app.main:app --no-access-log) > /tmp/inboxpilot-api.log 2>&1 &
+          (cd frontend && exec npm start -- --hostname localhost) > /tmp/inboxpilot-web.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/v1/health; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:3000/api/v1/health
+          make browser
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: verification-logs
+          path: |
+            /tmp/inboxpilot-api.log
+            /tmp/inboxpilot-web.log
+            frontend/test-results/

@@ -1,0 +1,7 @@
+# Security and privacy
+
+- Session cookies are HttpOnly, SameSite Lax, and Secure in production. They expire after seven days. The database stores the session token hash. Mutations check origin and CSRF. OAuth uses signed state and PKCE.
+- Synced mail and drafts are stored as bounded plaintext in the application database. OAuth token material is separately encrypted with Fernet. Workspace data is retained until deletion or operator-managed retention. Disconnect clears local token material and reports provider revocation failure. Backups follow operator retention and may outlive deletion.
+- Email is rendered as text. The MIME parser ignores attachments, extracts text, and removes script and style content. The agent does not fetch links, and prompt files mark messages as untrusted. The live model sees bounded, partially redacted text only after user consent.
+- Analysis and drafting cannot execute provider actions. Send, archive, and star require approval. Approved sends have a single validated recipient derived from Reply-To or From. Timeout and stale execution are recorded as unknown and require manual provider review.
+- Per-user request quotas limit analysis, drafts, and synchronization. Put public demo onboarding behind ingress rate limits to control account creation and configure browser/API body limits at ingress. Do not enable provider request or OAuth query logging. Keep database files and backups private.
